@@ -1,0 +1,32 @@
+{
+  "name": "firebase-admin-efc",
+  "version": "0.1.0",
+  "description": "Firebase Entity Framework Core design in typescript",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "pub": "publish --access public",
+    "dev": "ts-node-dev --respawn src/index.ts",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Brent7788/firebase-admin-efc.git"
+  },
+  "author": "Brent Steyn",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Brent7788/firebase-admin-efc/issues"
+  },
+  "homepage": "https://github.com/Brent7788/firebase-admin-efc#readme",
+  "devDependencies": {
+    "guid-typescript": "^1.0.9",
+    "ts-node-dev": "^1.1.6",
+    "typescript": "^4.2.2"
+  },
+  "dependencies": {
+    "firebase-admin": "^9.5.0",
+    "on-change": "^2.2.3",
+    "reflect-metadata": "^0.1.13"
+  }
+}
