@@ -10,6 +10,7 @@ import Condition from "./tools/Condition";
 import ObservableEntity from "./tools/ObservableEntity";
 import DbSetResult from "./DbSetResult";
 import DocumentSnapshot = firebase.firestore.DocumentSnapshot;
+import Convert from "./tools/Convert";
 
 export default class DbSet<T extends AbstractEntity> {
 
@@ -118,7 +119,7 @@ export default class DbSet<T extends AbstractEntity> {
 
     private setObservableEntity(doc: DocumentSnapshot): T {
         const observableEntity =
-            new ObservableEntity<T>(Object.assign(new this.type(), doc.data()));
+            new ObservableEntity<T>(Convert.objectTo<T>(doc.data(), new this.type()));
 
         this.observableEntities.push(observableEntity);
         return observableEntity.getObserveEntity();

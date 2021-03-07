@@ -1,7 +1,5 @@
 import "reflect-metadata";
 
-//TODO All of these decorator do the same
-
 /* This will prevent field from being save/store in firebase database
 * */
 export function IgnoreField(): PropertyDecorator {
@@ -12,9 +10,9 @@ export function IgnoreField(): PropertyDecorator {
 
 /* This will convert field into object
 * */
-export function ObjectField(): PropertyDecorator {
+export function ObjectField<T>(type: (new () => T)): PropertyDecorator {
     return function (target: Object, key: string | symbol) {
-        createMetadata(key, target, "ObjectField");
+        createMetadata(key, target, "ObjectField", type);
     }
 }
 
@@ -26,12 +24,23 @@ export function DbSet(): PropertyDecorator {
     }
 }
 
-function createMetadata(key: string | symbol, target: Object, keyLabel: string): void {
+function createMetadata(key: string | symbol, target: Object, keyLabel: string, type: any | undefined = undefined): void {
+
+    let metadataValue;
+
+    if (type) {
+        metadataValue = {
+            field: key,
+            type: type
+        }
+    } else {
+        metadataValue = key;
+    }
 
     // original functionality
     Reflect.defineMetadata(
         `data:${keyLabel}`,
-        key,
+        metadataValue,
         target,
         key
     );
@@ -40,6 +49,7 @@ function createMetadata(key: string | symbol, target: Object, keyLabel: string):
     let propertyKeys =
         Reflect.getOwnMetadata("keys:" + keyLabel, target) ||
         (Reflect.getMetadata("keys:" + keyLabel, target) || []).slice(0);
+
 
     Reflect.defineMetadata("keys:" + keyLabel, propertyKeys, target);
 

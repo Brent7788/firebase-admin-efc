@@ -5,6 +5,7 @@ import AbstractEntity from "./entities/AbstractEntity";
 import ObservableEntity from "./tools/ObservableEntity";
 import Condition from "./tools/Condition";
 import DocumentSnapshot = firebase.firestore.DocumentSnapshot;
+import Convert from "./tools/Convert";
 
 export default class DbSetResult<T extends AbstractEntity> {
 
@@ -34,6 +35,16 @@ export default class DbSetResult<T extends AbstractEntity> {
     public startAt(skip: number): DbSetResult<T> {
         this._startAt = skip;
         return this;
+    }
+
+    public async firstAsync(): Promise<T> {
+        const entity = await this.firstOrDefaultAsync();
+
+        if (Condition.isUndefined(entity)) {
+            throw new Error("Unable to find first document");
+        }
+
+        return <T>entity;
     }
 
     public async firstOrDefaultAsync(): Promise<T | undefined> {
@@ -86,10 +97,8 @@ export default class DbSetResult<T extends AbstractEntity> {
     }
 
     private setObservableEntity(doc: DocumentSnapshot): T {
-        //TODO Object.assign(new this.type(), doc.data()) only works for primitive fields in that entity
-        //     objects in the parent entity will be undefined
         const observableEntity =
-            new ObservableEntity<T>(Object.assign(new this.type(), doc.data()));
+            new ObservableEntity<T>(Convert.objectTo<T>(doc.data(), new this.type()));
 
         this.observableEntities.push(observableEntity);
         return observableEntity.getObserveEntity();

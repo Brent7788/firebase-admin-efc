@@ -6,7 +6,7 @@ export default class AbstractEntity {
 
     private id: string;
     private createdDate = new Date();
-    private fieldOrderNumber: number = -1;
+    private fieldOrderNumber: number;
 
     //TODO This ignoreId, create decorator for this
     constructor(ignoreIdGeneration = false, id: string | undefined = undefined) {
@@ -32,7 +32,10 @@ export default class AbstractEntity {
 
         for (const objectValue of objectValues) {
             // @ts-ignore
-            object[objectValue] = object[objectValue].asObject();
+            if (Condition.hasSomeValue((object[objectValue.field]))) {
+                // @ts-ignore
+                object[objectValue.field] = object[objectValue.field].asObject();
+            }
         }
 
         return object;
