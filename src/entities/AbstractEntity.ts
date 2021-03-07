@@ -50,6 +50,10 @@ export default class AbstractEntity {
         this.id = value;
     }
 
+    get CreatedDate(): Date {
+        return this.createdDate;
+    }
+
     set CreatedDate(value: Date) {
         this.createdDate = value;
     }
