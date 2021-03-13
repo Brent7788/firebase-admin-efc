@@ -1,6 +1,7 @@
 import {Guid} from "guid-typescript";
 import DecoratorTool from "../tools/DecoratorTool";
 import {ExpresionBuilder} from "../tools/ExpresionBuilder";
+import Condition from "../tools/Condition";
 
 export default class AbstractEntity {
 

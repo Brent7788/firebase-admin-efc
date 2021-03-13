@@ -16,6 +16,14 @@ export function ObjectField<T>(type: (new () => T)): PropertyDecorator {
     }
 }
 
+/* Check if class have file, the save in to firebase storage
+* */
+export function FileField(): PropertyDecorator {
+    return function (target: Object, key: string | symbol) {
+        createMetadata(key, target, "FileField");
+    }
+}
+
 /* This will convert field into object
 * */
 export function DbSet(): PropertyDecorator {
