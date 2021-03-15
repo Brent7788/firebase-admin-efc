@@ -9,12 +9,13 @@ export default class DbContext {
 
     private readonly db;
     public auth = firebase.auth();
-    private readonly batch;
+    private batch;
     private dbSetFieldNames: string[] = [];
     private fetchTimeOut = 3000;
     private check: any;
     private longRunningThread = false;
     private readonly addPagination: boolean;
+    private entitySetCount = 0;
 
     public writeError = false;
 
@@ -56,8 +57,10 @@ export default class DbContext {
 
         const entityName = (<T>entity).constructor.name;
 
-        if (this.addPagination)
+        if (this.addPagination) {
+            this.entitySetCount++;
             (<T>entity).FieldOrderNumber = await this.getLastFieldOrderNumber(entityName);
+        }
 
         const ref = this.db.collection((<T>entity).constructor.name)
             .doc((<T>entity).Id);
@@ -103,19 +106,26 @@ export default class DbContext {
     //TODO Use a tracking system: https://docs.microsoft.com/en-us/ef/core/querying/tracking
     public async saveChangesAsync() {
 
-        if (this.writeError) {
-            console.log("Unable to save changes. There was an error on the DB context.")
-            return;
+        try {
+            if (this.writeError) {
+                console.log("Unable to save changes. There was an error on the DB context.")
+                return;
+            }
+
+            const dbSets = this.getDbSets().filter(dbSet => dbSet);
+
+            if (dbSets.length === 0)
+                throw new Error("There is no entities to save");
+
+            this.updateObservableEntities(dbSets);
+
+            return this.batch.commit();
+        } catch (error) {
+            throw new Error(error.message)
+        } finally {
+            this.batch = this.db.batch();
+            this.entitySetCount = 0;
         }
-
-        const dbSets = this.getDbSets().filter(dbSet => dbSet);
-
-        if (dbSets.length === 0)
-            throw new Error("There is no entities to save");
-
-        this.updateObservableEntities(dbSets);
-
-        return this.batch.commit();
     }
 
     //TODO Use a tracking system: https://docs.microsoft.com/en-us/ef/core/querying/tracking
@@ -215,11 +225,14 @@ export default class DbContext {
                 .limitToLast(1)
                 .get();
 
+            if (this.entitySetCount > 1 && querySnapshot.empty) {
+                return this.entitySetCount;
+            }
+
             if (querySnapshot.empty) {
                 return 1;
             } else {
-                const entity =  querySnapshot.docs[0].data();
-                console.log(entity.fieldOrderNumber);
+                const entity = querySnapshot.docs[0].data();
 
                 if (entity.fieldOrderNumber === undefined ||
                     entity.fieldOrderNumber === null ||
@@ -228,7 +241,11 @@ export default class DbContext {
                     throw new Error(`Entity with id: ${entity.id} field order number is undefined, null or NaN`);
                 }
 
-                return ++entity.fieldOrderNumber;
+                if (this.entitySetCount > 1) {
+                    return ++entity.fieldOrderNumber + (this.entitySetCount - 1);
+                } else {
+                    return ++entity.fieldOrderNumber;
+                }
             }
         } catch (error) {
             this.writeError = true;

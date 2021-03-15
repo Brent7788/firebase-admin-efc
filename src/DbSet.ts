@@ -42,9 +42,15 @@ export default class DbSet<T extends AbstractEntity> {
         return new DbSetResult<T>(this.type, this.entity, this.queries, this.observableEntities);
     }
 
-    public orderByFirstEntry(): DbSetResult<T> {
-        this.queries.push(this.collectionRef.orderBy(this.FIELD_ORDER_NUMBER));
-        return new DbSetResult<T>(this.type, this.entity, this.queries, this.observableEntities);
+    public orderByFieldNumber(): DbSetResult<T> {
+        try {
+            this.queries.push(this.collectionRef.orderBy(this.FIELD_ORDER_NUMBER));
+            return new DbSetResult<T>(this.type, this.entity, this.queries, this.observableEntities);
+        } catch (error) {
+            throw new Error(error);
+        } finally {
+            this.queries = [];
+        }
     }
 
     //TODO This is not correct
@@ -129,6 +135,7 @@ export default class DbSet<T extends AbstractEntity> {
 
         if (exp.conditionState === ConditionState.START && exp.andExpresionGroup.length === 0) {
             this.setOrQueries(exp.orExpressions[0]);
+            return;
         }
 
         if (exp.andExpresionGroup.length > 0 && this.queries.length === 0) {

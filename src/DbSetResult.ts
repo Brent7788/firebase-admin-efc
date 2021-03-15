@@ -11,7 +11,7 @@ export default class DbSetResult<T extends AbstractEntity> {
 
     private readonly type: (new () => T);
     private entity: T;
-    private queries: Query<DocumentData>[] = [];
+    private readonly queries: Query<DocumentData>[] = [];
     private _take: number | undefined;
     private _startAt: number | undefined;
 
@@ -92,7 +92,6 @@ export default class DbSetResult<T extends AbstractEntity> {
             }
         }
 
-        this.queries = [];
         return entities;
     }
 
