@@ -3,15 +3,15 @@ import Condition from "../tools/Condition";
 import AbstractEntity from "./AbstractEntity";
 
 
-export default class StorageFile extends AbstractEntity{
+export default class StorageFile extends AbstractEntity {
 
-    private fileName: string;
-    private fileExtension: string;
-    private fileStoragePath: string;
-    private url: string;
+    private _name: string;
+    private _extension: string;
+    private _storagePath: string;
+    private _url: string;
 
     @IgnoreField()
-    private file: Blob | Uint8Array | ArrayBuffer;
+    private _rowData: Blob | Uint8Array | ArrayBuffer | string;
 
     @IgnoreField()
     private readonly noFileExtension: boolean;
@@ -21,58 +21,55 @@ export default class StorageFile extends AbstractEntity{
         this.noFileExtension = noFileExtension;
     }
 
-    public fullPath(): string {
-        const fullName = `${this.fileName}.${this.fileExtension}`;
-        return Condition.isNothing(this.fileStoragePath) ? fullName : `${this.fileStoragePath}/${fullName}`;
-    }
-
-    get FileName(): string {
-        return this.fileName;
-    }
-
-    set FileName(value: string) {
-
-        if (Condition.isStringEmpty(value))
+    protected validate() {
+        if (Condition.isStringEmpty(this._name))
             throw new Error("File Name not provided");
 
-        this.fileName = value;
-    }
-    get FileExtension(): string {
-        return this.fileExtension;
-    }
-
-    set FileExtension(value: string) {
-
-        if (!this.noFileExtension && Condition.isStringEmpty(value))
+        if (!this.noFileExtension && Condition.isStringEmpty(this._extension))
             throw new Error("File Extension not provided");
 
-        this.fileExtension = value;
-    }
-    get FileStoragePath(): string {
-        return this.fileStoragePath;
-    }
-
-    set FileStoragePath(value: string) {
-        this.fileStoragePath = value;
-    }
-
-    get Url(): string {
-        return this.url;
-    }
-
-    set Url(value: string) {
-        this.url = value;
-    }
-
-    get File() {
-        return this.file;
-    }
-
-    set File(value: Blob | Uint8Array | ArrayBuffer) {
-
-        if (Condition.isUndefined(value) || Condition.isNull(value))
+        if (Condition.isUndefined(this._rowData) || Condition.isNull(this._rowData))
             throw new Error("File Data not provided");
+    }
 
-        this.file = value;
+    public fullPath(): string {
+        const fullName = `${this._name}.${this._extension}`;
+        return Condition.isNothing(this._storagePath) ? fullName : `${this._storagePath}/${fullName}`;
+    }
+
+    get name(): string {
+        return this._name;
+    }
+
+    set name(value: string) {
+        this._name = value;
+    }
+    get extension(): string {
+        return this._extension;
+    }
+
+    set extension(value: string) {
+        this._extension = value;
+    }
+    get storagePath(): string {
+        return this._storagePath;
+    }
+
+    set storagePath(value: string) {
+        this._storagePath = value;
+    }
+    get url(): string {
+        return this._url;
+    }
+
+    set url(value: string) {
+        this._url = value;
+    }
+    get rowData(): Blob | Uint8Array | ArrayBuffer | string {
+        return this._rowData;
+    }
+
+    set rowData(value: Blob | Uint8Array | ArrayBuffer | string) {
+        this._rowData = value;
     }
 }

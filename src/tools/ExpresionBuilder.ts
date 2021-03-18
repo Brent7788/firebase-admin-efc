@@ -73,7 +73,6 @@ export class ExpresionBuilder {
                 .replace("}", "");
             const split = property.split(".")
 
-            console.log("--", split, split.length);
             if (split.length < 2 || split.length > 2)
                 throw new Error(`Unable to extract property out of function: ${propertyFun.toString()}`)
 
@@ -101,7 +100,6 @@ export class ExpresionBuilder {
 
             this.tempExpressions.forEach((expresion, index) => {
 
-               // console.log(expresion);
                 if (expresion.conditionState === ConditionState.AND && !expresion.isStartOfNewGroup) {
 
                     andExpressions.push(expresion);

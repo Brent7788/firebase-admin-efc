@@ -12,7 +12,7 @@ export function IgnoreField(): PropertyDecorator {
 * */
 export function ObjectField<T>(type: (new () => T)): PropertyDecorator {
     return function (target: Object, key: string | symbol) {
-        createMetadata(key, target, "ObjectField", type);
+        createMetadata((<string>key).replace("_", ""), target, "ObjectField", type);
     }
 }
 

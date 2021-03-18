@@ -44,7 +44,6 @@ export default class DbContext {
             for (const type of types) {
                 let entity = new type();
                 const dbSetFieldName = this.lowercaseFirstLetter(entity.constructor.name);
-                console.log(dbSetFieldName);
                 (<any>this)[dbSetFieldName] = new DbSet(type, entity, this.db, this.batch);
                 this.dbSetFieldNames.push(dbSetFieldName);
             }
@@ -59,11 +58,11 @@ export default class DbContext {
 
         if (this.addPagination) {
             this.entitySetCount++;
-            (<T>entity).FieldOrderNumber = await this.getLastFieldOrderNumber(entityName);
+            (<T>entity).fieldOrderNumber = await this.getLastFieldOrderNumber(entityName);
         }
 
         const ref = this.db.collection((<T>entity).constructor.name)
-            .doc((<T>entity).Id);
+            .doc((<T>entity).id);
 
         this.batch.set(ref, (<T>entity).asObject());
     }
@@ -73,7 +72,7 @@ export default class DbContext {
         this.validateEntityBeforeWrite(entity);
 
         const ref = this.db.collection((<T>entity).constructor.name)
-            .doc((<T>entity).Id);
+            .doc((<T>entity).id);
 
         this.batch.update(ref, (<T>entity).asObject());
     }
@@ -83,7 +82,7 @@ export default class DbContext {
         this.validateEntityBeforeWrite(entity);
 
         const ref = this.db.collection((<T>entity).constructor.name)
-            .doc((<T>entity).Id);
+            .doc((<T>entity).id);
 
         this.batch.delete(ref);
     }
@@ -128,54 +127,6 @@ export default class DbContext {
         }
     }
 
-    //TODO Use a tracking system: https://docs.microsoft.com/en-us/ef/core/querying/tracking
-    public async expensivelySaveChangesAsync() {
-        let i = 0;
-        return new Promise<boolean>((resolve, reject) => {
-            try {
-                const dbSets = this.getDbSets().filter(dbSet => dbSet);
-
-                if (dbSets.length === 0)
-                    reject("There is no entities to save");
-
-                setTimeout(() => {
-                    clearInterval(this.check);
-                    reject("Unable to save change. The process is still running concurrently");
-                }, this.fetchTimeOut);
-
-                let alreadyCommitted = false;
-                //TODO This mite not be a good idea, maybe use on-change to detect when is the right time to commit
-                this.check = setInterval(async () => {
-                    try {
-                        i++;
-                        console.log(this.longRunningThread, i, alreadyCommitted, this.writeError);
-                        if (!this.longRunningThread && !alreadyCommitted) {
-                            const stillRun = dbSets.filter(dbSet => dbSet.isRunConcurrently);
-
-                            console.log(stillRun.length);
-                            if (stillRun.length === 0 && !alreadyCommitted) {
-
-                                this.updateObservableEntities(dbSets);
-
-                                if (!this.writeError && !alreadyCommitted) {
-                                    alreadyCommitted = true;
-                                    await this.batch.commit()
-                                    resolve(true);
-                                }
-                                clearInterval(this.check);
-                            }
-                        }
-                    } catch (error) {
-                        clearInterval(this.check);
-                        reject(`Unable to save changes, ${error}`);
-                    }
-                }, 50);
-            } catch (error) {
-                reject(`Unable to save changes, ${error}`)
-            }
-        });
-    }
-
     private getDbSets(): DbSet<any>[] {
         return this.dbSetFieldNames.map(dbSetFieldName => <DbSet<any>>(<any>this)[dbSetFieldName]);
     }
@@ -197,19 +148,9 @@ export default class DbContext {
             throw new Error(`Please provide entity to write`);
         }
 
-        if (!entity.Id) {
+        if (!entity.id) {
             this.writeError = true;
             throw new Error(`Entity(${(<T>entity).constructor.name}) doesn't have unique identifier(id)`);
-        }
-    }
-
-    //TODO This is workaround for firebase bug. Data wound save in async function or call back function.
-    //     after waiting for one second, then data save.
-    private async shouldWait(wait: boolean, func: () => void) {
-        if (wait) {
-            setTimeout(func, 1000);
-        } else {
-            await func();
         }
     }
 
@@ -231,22 +172,22 @@ export default class DbContext {
 
             if (querySnapshot.empty) {
                 return 1;
-            } else {
-                const entity = querySnapshot.docs[0].data();
-
-                if (entity.fieldOrderNumber === undefined ||
-                    entity.fieldOrderNumber === null ||
-                    isNaN(entity.fieldOrderNumber)) {
-
-                    throw new Error(`Entity with id: ${entity.id} field order number is undefined, null or NaN`);
-                }
-
-                if (this.entitySetCount > 1) {
-                    return ++entity.fieldOrderNumber + (this.entitySetCount - 1);
-                } else {
-                    return ++entity.fieldOrderNumber;
-                }
             }
+
+            const entity = querySnapshot.docs[0].data();
+
+            if (entity.fieldOrderNumber === undefined ||
+                entity.fieldOrderNumber === null ||
+                isNaN(entity.fieldOrderNumber)) {
+
+                throw new Error(`Entity with id: ${entity.id} field order number is undefined, null or NaN`);
+            }
+
+            if (this.entitySetCount > 1) {
+                return ++entity.fieldOrderNumber + (this.entitySetCount - 1);
+            }
+
+            return ++entity.fieldOrderNumber;
         } catch (error) {
             this.writeError = true;
             console.error("Unable to process pagination", error);
