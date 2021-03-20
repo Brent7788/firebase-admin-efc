@@ -67,7 +67,10 @@ export default class AbstractEntity {
     }
 
     private handleInnerObject(object: any, key: string): void {
-        const isObject = typeof object[key] === "object";
+        const isObject = typeof object[key] === "object" &&
+            Condition.isNotUndefined(object[key]) &&
+            Condition.isNotNull(object[key]);
+
         const haveUnderscore = Condition.stringContain(key,"_");
 
         if (isObject && object[key].isValueObject && object[key].isValueObject()) {

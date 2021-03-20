@@ -1,13 +1,13 @@
 
 
-export class ValueOf<TValue> {
+export default class ValueOf<TValue> {
 
     public value: TValue;
 
     protected constructor() {
     }
 
-    public static from(value: any) {
+    public static from(value: any): any {
         const o = new this();
         o.value = value;
         o.validate();
@@ -23,8 +23,4 @@ export class ValueOf<TValue> {
     public isValueObject(): boolean {
         return true;
     }
-}
-
-export function factory<T>(factory: new (...args: any) => T) {
-    return factory;
 }
