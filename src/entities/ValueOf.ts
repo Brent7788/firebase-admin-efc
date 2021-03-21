@@ -7,14 +7,16 @@ export default class ValueOf<TValue> {
     protected constructor() {
     }
 
-    public static from(value: any): any {
+    public static from(value: any | undefined = undefined, validate = false): any {
         const o = new this();
         o.value = value;
-        o.validate();
+        if (validate) {
+            o.validate();
+        }
         return o;
     }
 
-    protected validate(): void {}
+    public validate(): void {}
 
     public equal(val: ValueOf<TValue>): boolean {
         return this.value === val.value;

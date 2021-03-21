@@ -19,51 +19,29 @@ export default class AbstractEntity {
         }
     }
 
-    public asObjectOld(): {} {
-
-        this.validate();
-
-        let object = Object.assign({}, this);
-
-        let ignoreValues = DecoratorTool.getMyPropertyDecoratorValues(this.constructor, "IgnoreField");
-
-        for (const ignoreValue of ignoreValues) {
-            // @ts-ignore
-            delete object[ignoreValue];
-        }
-
-        let objectValues = DecoratorTool.getMyPropertyDecoratorValues(this.constructor, "ObjectField");
-
-        for (const objectValue of objectValues) {
-
-            // @ts-ignore
-            if (Condition.hasSomeValue((object[objectValue.field]))) {
-                // @ts-ignore
-                object[objectValue.field] = object[objectValue.field].asObject();
-            }
-        }
-
-        return object;
-    }
-
     public asObject(): {} {
 
         this.validate();
 
         const object = <any>Object.assign({}, this);
+
+        this.deleteFieldsWithIgnoreDecorator(object);
+
         const objectKeys = Object.keys(object);
-
-        const ignoreValues = DecoratorTool.getMyPropertyDecoratorValues(this.constructor, "IgnoreField");
-
-        for (const ignoreValue of ignoreValues) {
-            delete object[ignoreValue];
-        }
 
         objectKeys.forEach(key => {
             this.handleInnerObject(object, key);
         });
 
         return object;
+    }
+
+    private deleteFieldsWithIgnoreDecorator(object: any) {
+        const ignoreValues = DecoratorTool.getMyPropertyDecoratorValues(this.constructor, "IgnoreField");
+
+        for (const ignoreValue of ignoreValues) {
+            delete object[ignoreValue];
+        }
     }
 
     private handleInnerObject(object: any, key: string): void {
