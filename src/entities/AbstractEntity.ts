@@ -19,9 +19,10 @@ export default class AbstractEntity {
         }
     }
 
-    public asObject(): {} {
+    public asObject(ignoreValidation = false): {} {
 
-        this.validate();
+        if (!ignoreValidation)
+            this.validate();
 
         const object = <any>Object.assign({}, this);
 
@@ -30,7 +31,7 @@ export default class AbstractEntity {
         const objectKeys = Object.keys(object);
 
         objectKeys.forEach(key => {
-            this.handleInnerObject(object, key);
+            this.handleInnerObject(object, key, ignoreValidation);
         });
 
         return object;
@@ -44,7 +45,7 @@ export default class AbstractEntity {
         }
     }
 
-    private handleInnerObject(object: any, key: string): void {
+    private handleInnerObject(object: any, key: string, ignoreValidation: boolean): void {
         const isObject = typeof object[key] === "object" &&
             Condition.isNotUndefined(object[key]) &&
             Condition.isNotNull(object[key]);
@@ -57,11 +58,11 @@ export default class AbstractEntity {
 
         } else if (isObject && haveUnderscore && object[key].asObject) {
 
-            object[key.replace("_","")] = object[key].asObject();
+            object[key.replace("_","")] = object[key].asObject(ignoreValidation);
             delete object[key];
 
         } else if (isObject && object[key].asObject) {
-            object[key] = object[key].asObject();
+            object[key] = object[key].asObject(ignoreValidation);
 
         } else if (haveUnderscore) {
             object[key.replace("_","")] = object[key];

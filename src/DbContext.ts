@@ -50,7 +50,7 @@ export default class DbContext {
         }
     }
 
-    public async set<T extends AbstractEntity>(entity: T | undefined) {
+    public async set<T extends AbstractEntity>(entity: T | undefined, ignoreValidation = false) {
 
         this.validateEntityBeforeWrite(entity);
 
@@ -64,7 +64,7 @@ export default class DbContext {
         const ref = this.db.collection((<T>entity).constructor.name)
             .doc((<T>entity).id);
 
-        this.batch.set(ref, (<T>entity).asObject());
+        this.batch.set(ref, (<T>entity).asObject(ignoreValidation));
     }
 
     private update<T extends AbstractEntity>(entity: T | undefined): void {
@@ -85,21 +85,6 @@ export default class DbContext {
             .doc((<T>entity).id);
 
         this.batch.delete(ref);
-    }
-
-    //TODO There is a problem with long running code that is going to be updated
-    //     It does not update
-    public handleLongRunningCode(running: () => Promise<void>): void {
-        this.longRunningThread = true;
-
-        running().then(value => {
-            console.log('AM I DONE', value);
-            this.longRunningThread = false;
-        }).catch(error => {
-            this.writeError = true;
-            this.longRunningThread = false;
-            console.error(error);
-        })
     }
 
     //TODO Use a tracking system: https://docs.microsoft.com/en-us/ef/core/querying/tracking
