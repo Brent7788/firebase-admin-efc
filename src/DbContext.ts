@@ -58,7 +58,7 @@ export default class DbContext {
 
         if (this.addPagination) {
             this.entitySetCount++;
-            (<T>entity).fieldOrderNumber = await this.getLastFieldOrderNumber(entityName);
+            (<T>entity).documentPosition = await this.getLastDocumentPosition(entityName);
         }
 
         const ref = this.db.collection((<T>entity).constructor.name)
@@ -101,7 +101,7 @@ export default class DbContext {
             if (dbSets.length === 0)
                 throw new Error("There is no entities to save");
 
-            this.updateObservableEntities(dbSets);
+            await this.updateObservableEntities(dbSets);
 
             return this.batch.commit();
         } catch (error) {
@@ -116,14 +116,18 @@ export default class DbContext {
         return this.dbSetFieldNames.map(dbSetFieldName => <DbSet<any>>(<any>this)[dbSetFieldName]);
     }
 
-    private updateObservableEntities(dbSets: DbSet<any>[]): void {
+    private async updateObservableEntities(dbSets: DbSet<any>[]) {
         const entitiesToUpdate = dbSets
             .map(dbSet => dbSet.observableEntities.filter(o => o.haveEntityChanged))
             .flat();
 
+        let updateAsPromises = [];
+
         for (const entitiesToUpdateElement of entitiesToUpdate) {
-            this.update(entitiesToUpdateElement.entity);
+            updateAsPromises.push(this.update(entitiesToUpdateElement.entity));
         }
+
+        await Promise.all(updateAsPromises);
     }
 
     private validateEntityBeforeWrite<T extends AbstractEntity>(entity: T | undefined) {
@@ -143,11 +147,11 @@ export default class DbContext {
         return str.charAt(0).toLowerCase() + str.slice(1);
     }
 
-    public async getLastFieldOrderNumber(entityName: string): Promise<number> {
+    public async getLastDocumentPosition(entityName: string): Promise<number> {
         try {
             const collectionReference = this.db.collection(entityName);
             const querySnapshot = await collectionReference
-                .orderBy("fieldOrderNumber")
+                .orderBy("documentPosition")
                 .limitToLast(1)
                 .get();
 
@@ -161,18 +165,18 @@ export default class DbContext {
 
             const entity = querySnapshot.docs[0].data();
 
-            if (entity.fieldOrderNumber === undefined ||
-                entity.fieldOrderNumber === null ||
-                isNaN(entity.fieldOrderNumber)) {
+            if (entity.documentPosition === undefined ||
+                entity.documentPosition === null ||
+                isNaN(entity.documentPosition)) {
 
                 throw new Error(`Entity with id: ${entity.id} field order number is undefined, null or NaN`);
             }
 
             if (this.entitySetCount > 1) {
-                return ++entity.fieldOrderNumber + (this.entitySetCount - 1);
+                return ++entity.documentPosition + (this.entitySetCount - 1);
             }
 
-            return ++entity.fieldOrderNumber;
+            return ++entity.documentPosition;
         } catch (error) {
             this.writeError = true;
             console.error("Unable to process pagination", error);

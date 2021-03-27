@@ -7,7 +7,7 @@ export default class AbstractEntity {
 
     private _id: string;
     private _createdDate = new Date();
-    private _fieldOrderNumber: number;
+    private _documentPosition: number;
 
     //TODO This ignoreId, create decorator for this
     constructor(ignoreIdGeneration = false, id: string | undefined = undefined) {
@@ -101,11 +101,11 @@ export default class AbstractEntity {
     set createdDate(value: Date) {
         this._createdDate = value;
     }
-    get fieldOrderNumber(): number {
-        return this._fieldOrderNumber;
+    get documentPosition(): number {
+        return this._documentPosition;
     }
 
-    set fieldOrderNumber(value: number) {
-        this._fieldOrderNumber = value;
+    set documentPosition(value: number) {
+        this._documentPosition = value;
     }
 }

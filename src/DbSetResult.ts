@@ -6,6 +6,8 @@ import ObservableEntity from "./tools/ObservableEntity";
 import Condition from "./tools/Condition";
 import DocumentSnapshot = firebase.firestore.DocumentSnapshot;
 import Convert from "./tools/Convert";
+import {firestore} from "firebase-admin/lib/firestore";
+import QuerySnapshot = firestore.QuerySnapshot;
 
 export default class DbSetResult<T extends AbstractEntity> {
 
@@ -14,17 +16,21 @@ export default class DbSetResult<T extends AbstractEntity> {
     private readonly queries: Query<DocumentData>[] = [];
     private _take: number | undefined;
     private _startAt: number | undefined;
+    private _limitReads: number | undefined;
+    private readonly textToSearch: string | undefined;
 
     public observableEntities: ObservableEntity<T>[];
 
     constructor(type: (new () => T),
                 entity: T,
                 queries: Query<DocumentData>[],
-                observableEntities: ObservableEntity<T>[]) {
+                observableEntities: ObservableEntity<T>[],
+                textToSearch: string | undefined) {
         this.type = type;
         this.entity = entity;
         this.queries = queries;
         this.observableEntities = observableEntities;
+        this.textToSearch = textToSearch;
     }
 
     public take(take: number): DbSetResult<T> {
@@ -34,6 +40,11 @@ export default class DbSetResult<T extends AbstractEntity> {
 
     public startAt(skip: number): DbSetResult<T> {
         this._startAt = skip;
+        return this;
+    }
+
+    public limitReads(limit: number) {
+        this._limitReads = limit;
         return this;
     }
 
@@ -67,31 +78,119 @@ export default class DbSetResult<T extends AbstractEntity> {
 
     public async toListAsync(): Promise<T[]> {
 
-        const entities: T[] = [];
+        const entitiesAsPromises = [];
 
         for (let query of this.queries) {
 
-            if (this._startAt)
-                query = query.startAt(this._startAt);
-
-            if (this._take)
-                query = query.limit(this._take);
+            query = this.queryPosition(query);
 
             const querySnapshot = await query.get()
 
-            for (const doc of querySnapshot.docs) {
-                entities.push(this.setObservableEntity(doc))
-            }
+            entitiesAsPromises.push(this.getObservableEntitiesFromQuerySnapshot(querySnapshot));
 
-            if (this._take && querySnapshot.size === this._take) {
+            if ((this._take && querySnapshot.size === this._take) || Condition.hasSomeValue(this.textToSearch)) {
                 break;
             } else if (this._take) {
                 this._take = this._take - querySnapshot.size;
             }
         }
 
-        return entities;
+        return (await Promise.all(entitiesAsPromises)).flat();
     }
+
+    private queryPosition(query: Query<DocumentData>) {
+        if (this._startAt)
+            query = query.startAt(this._startAt);
+
+        const textToSearchExist = Condition.hasSomeValue(this.textToSearch);
+
+        if (this._take && !textToSearchExist)
+            query = query.limit(this._take);
+
+        if (textToSearchExist && Condition.hasSomeValue(this._limitReads)) {
+            query = query.limit(<number>this._limitReads);
+        }
+
+        return query;
+    }
+
+    private async getObservableEntitiesFromQuerySnapshot(querySnapshot: QuerySnapshot<DocumentData>) {
+
+        const observableEntities: T[] = [];
+
+        if (Condition.isStringNotEmpty(this.textToSearch))
+            return this.searchDocumentsForText(querySnapshot);
+
+        for (const doc of querySnapshot.docs) {
+            observableEntities.push(this.setObservableEntity(doc))
+        }
+
+        return observableEntities;
+    }
+
+    private async searchDocumentsForText(querySnapshot: QuerySnapshot<DocumentData>) {
+        const observableEntities: T[] = [];
+
+        for (const doc of querySnapshot.docs) {
+
+            if (doc.exists && this.searchObject(doc.data()))
+                observableEntities.push(this.setObservableEntity(doc));
+
+            if (this._take === observableEntities.length)
+                break;
+        }
+
+        return observableEntities;
+    }
+
+    private searchObject(doc: any): boolean {
+        const docKeys = Object.keys(doc).filter(k => k !== "id" && k !== "documentPosition" && k !== "createdDate");
+
+        let textExistInObject = false;
+
+        for (const docKey of docKeys) {
+
+            const value = doc[docKey];
+
+            textExistInObject = this.valueContainsText(value);
+
+            if (textExistInObject)
+                break;
+        }
+
+        return textExistInObject;
+    }
+
+    private valueContainsText(value: any) {
+
+        let containsInValue = false;
+
+        if (Condition.isNotNull(value))
+            containsInValue = false;
+
+        if (Array.isArray(value)) {
+            containsInValue = this.searchInArray(<[]>value);
+        } else if (typeof value === "object") {
+            containsInValue = this.searchObject(value);
+
+        } else if (Condition.stringContain(value.toString().toLowerCase(), <string>this.textToSearch)) {
+            containsInValue = true;
+        }
+
+        return containsInValue;
+    }
+
+    private searchInArray(arrayValue: []): boolean {
+
+        let containsInValue = false;
+
+        for (const value of arrayValue) {
+            containsInValue = this.valueContainsText(value);
+        }
+
+        return containsInValue;
+    }
+
 
     private setObservableEntity(doc: DocumentSnapshot): T {
         const observableEntity =

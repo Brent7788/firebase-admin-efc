@@ -20,10 +20,10 @@ export default class DbSet<T extends AbstractEntity> {
     private readonly type: (new () => T);
     private readonly entityName: string;
     private queries: Query<DocumentData>[] = [];
-    private readonly FIELD_ORDER_NUMBER = "fieldOrderNumber";
+    private readonly DOCUMENT_POSITION = "documentPosition";
+    private textToSearch: string | undefined;
 
     public readonly collectionRef: CollectionReference<DocumentData>;
-    public isRunConcurrently = false;
     public observableEntities: ObservableEntity<T>[] = [];
 
     constructor(type: (new () => T), entity: T, db: Firestore, batch: WriteBatch) {
@@ -37,30 +37,33 @@ export default class DbSet<T extends AbstractEntity> {
 
 
     public where(expresion: (entity: T) => ExpresionBuilder): DbSetResult<T> {
-        this.isRunConcurrently = true;
-        this.setQueries(expresion(this.entity).prosesExpresionSet());
-        return new DbSetResult<T>(this.type, this.entity, this.queries, this.observableEntities);
+        return this.sanitizeQueries(
+            () => this.setQueries(expresion(this.entity).prosesExpresionSet())
+        );
+    }
+
+    public search(text: string) {
+        if (Condition.isStringEmpty(text))
+            throw new Error("Please provide some text to search");
+
+        this.textToSearch = text;
+
+        return this.orderByFieldNumber();
     }
 
     public orderByFieldNumber(): DbSetResult<T> {
-        try {
-            this.queries.push(this.collectionRef.orderBy(this.FIELD_ORDER_NUMBER));
-            return new DbSetResult<T>(this.type, this.entity, this.queries, this.observableEntities);
-        } catch (error) {
-            throw new Error(error);
-        } finally {
-            this.queries = [];
-        }
+        return this.sanitizeQueries(
+            () => this.queries.push(this.collectionRef.orderBy(this.DOCUMENT_POSITION))
+        );
     }
 
-    //TODO This is not correct
-    /*public orderBy(fieldPath: string): DbSetFlutterNumber<T> {
-        this.collectionRef.orderBy(fieldPath);
-        return this.dbSetFlutterNumber;
-    }*/
+    public orderBy(fieldPath: string): DbSetResult<T> {
+        return this.sanitizeQueries(
+            () => this.queries.push(this.collectionRef.orderBy(fieldPath))
+        );
+    }
 
     public async firstOrDefaultAsync(expresion: (entity: T) => ExpresionBuilder): Promise<T | undefined> {
-        this.isRunConcurrently = true;
         const exp: ExpresionBuilder = expresion(this.entity).prosesExpresionSet();
 
         if (exp.andExpresionGroup.length === 0 &&
@@ -89,7 +92,7 @@ export default class DbSet<T extends AbstractEntity> {
         let entity: T | undefined = undefined;
 
         if (this.queries.length === 0) {
-            const query = this.collectionRef.orderBy(this.FIELD_ORDER_NUMBER).startAt(0).limit(1);
+            const query = this.collectionRef.orderBy(this.DOCUMENT_POSITION).startAt(0).limit(1);
             const querySnapshot = await query.get();
 
             if (!querySnapshot.empty) {
@@ -104,6 +107,24 @@ export default class DbSet<T extends AbstractEntity> {
         }
 
         return <T>entity;
+    }
+
+    private sanitizeQueries(queryFunc: () => void) {
+        try {
+            queryFunc();
+            return new DbSetResult<T>(
+                this.type,
+                this.entity,
+                this.queries,
+                this.observableEntities,
+                this.textToSearch
+            );
+        } catch (error) {
+            throw new Error(error);
+        } finally {
+            this.queries = [];
+            this.textToSearch = undefined;
+        }
     }
 
     private async firstInQuery() {
@@ -153,7 +174,7 @@ export default class DbSet<T extends AbstractEntity> {
                     if (this.queries[queryIndex]) {
                         this.queries[queryIndex] = this.queries[queryIndex].where(expressionObj.field, expressionObj.operator, expressionObj.value);
                     } else if(orderByWhat.length === expressions.length) {
-                        this.queries[queryIndex] = this.collectionRef.orderBy(this.FIELD_ORDER_NUMBER).where(expressionObj.field, expressionObj.operator, expressionObj.value);
+                        this.queries[queryIndex] = this.collectionRef.orderBy(this.DOCUMENT_POSITION).where(expressionObj.field, expressionObj.operator, expressionObj.value);
                     } else {
                         this.queries[queryIndex] = this.collectionRef.orderBy(expressionObj.field).where(expressionObj.field, expressionObj.operator, expressionObj.value);
                     }
@@ -173,7 +194,7 @@ export default class DbSet<T extends AbstractEntity> {
 
         if (orExpression.operator === "==" || orExpression.operator === "!=") {
 
-            this.queries.push(this.collectionRef.orderBy(this.FIELD_ORDER_NUMBER).where(orExpression.field, orExpression.operator, orExpression.value));
+            this.queries.push(this.collectionRef.orderBy(this.DOCUMENT_POSITION).where(orExpression.field, orExpression.operator, orExpression.value));
         } else {
             this.queries.push(this.collectionRef.where(orExpression.field, orExpression.operator, orExpression.value));
         }

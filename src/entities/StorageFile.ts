@@ -28,7 +28,9 @@ export default class StorageFile extends AbstractEntity {
         if (!this.noFileExtension && Condition.isStringEmpty(this._extension))
             throw new Error("File Extension not provided");
 
-        if (Condition.isUndefined(this._rowData) || Condition.isNull(this._rowData))
+        const urlNotExit = Condition.isNothing(this._url);
+
+        if (urlNotExit && Condition.isUndefined(this._rowData) || Condition.isNull(this._rowData))
             throw new Error("File Data not provided");
     }
 
