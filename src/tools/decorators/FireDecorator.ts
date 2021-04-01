@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import {IgnoreStateCheckOn} from "../../entities/enums/IgnoreStateCheckOn";
 
 /* This will prevent field from being save/store in firebase database
 * */
@@ -13,6 +14,18 @@ export function IgnoreField(): PropertyDecorator {
 export function ObjectField<T>(type: (new () => T)): PropertyDecorator {
     return function (target: Object, key: string | symbol) {
         createMetadata((<string>key).replace("_", ""), target, "ObjectField", type);
+    }
+}
+
+/* Set the ignore valid state check
+* */
+export function Validation<T>(type: IgnoreStateCheckOn): PropertyDecorator {
+    return function (target: Object, key: string | symbol) {
+
+        if (type === IgnoreStateCheckOn.Unknown)
+            throw new Error("The state to ignore can not be unknown")
+
+        createMetadata((<string>key), target, "Validation", type);
     }
 }
 
@@ -36,7 +49,7 @@ function createMetadata(key: string | symbol, target: Object, keyLabel: string, 
 
     let metadataValue;
 
-    if (type) {
+    if (type !== undefined) {
         metadataValue = {
             field: key,
             type: type

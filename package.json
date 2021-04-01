@@ -1,6 +1,6 @@
 {
   "name": "firebase-admin-efc",
-  "version": "0.36.0",
+  "version": "0.39.0",
   "description": "Firebase Entity Framework Core design in typescript",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

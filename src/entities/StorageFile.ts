@@ -21,7 +21,7 @@ export default class StorageFile extends AbstractEntity {
         this.noFileExtension = noFileExtension;
     }
 
-    protected validate() {
+    protected ensureValidState() {
         if (Condition.isStringEmpty(this._name))
             throw new Error("File Name not provided");
 

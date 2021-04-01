@@ -2,6 +2,7 @@ import firebase from "firebase-admin";
 import DbSet from "./DbSet";
 import AbstractEntity from "./entities/AbstractEntity";
 import EmulatorConfig from "./entities/EmulatorConfig";
+import {IgnoreStateCheckOn} from "./entities/enums/IgnoreStateCheckOn";
 
 let canConfigEmulator = true;
 
@@ -50,7 +51,7 @@ export default class DbContext {
         }
     }
 
-    public async set<T extends AbstractEntity>(entity: T | undefined, ignoreValidation = false) {
+    public async set<T extends AbstractEntity>(entity: T | undefined) {
 
         this.validateEntityBeforeWrite(entity);
 
@@ -64,7 +65,9 @@ export default class DbContext {
         const ref = this.db.collection((<T>entity).constructor.name)
             .doc((<T>entity).id);
 
-        this.batch.set(ref, (<T>entity).asObject(ignoreValidation));
+        (<T>entity).currentStateToIgnore = IgnoreStateCheckOn.Update;
+
+        this.batch.set(ref, (<T>entity).asObject());
     }
 
     private update<T extends AbstractEntity>(entity: T | undefined): void {
@@ -73,6 +76,8 @@ export default class DbContext {
 
         const ref = this.db.collection((<T>entity).constructor.name)
             .doc((<T>entity).id);
+
+        (<T>entity).currentStateToIgnore = IgnoreStateCheckOn.Update;
 
         this.batch.update(ref, (<T>entity).asObject());
     }
