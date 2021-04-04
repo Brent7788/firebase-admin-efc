@@ -26,27 +26,19 @@ export default class AbstractEntity {
 
     public asObject(ensureValidState = true): {} {
 
-        if (ensureValidState)
-            ensureValidState = !(ensureValidState && this._currentStateToIgnore === IgnoreStateCheckOn.All);
-
-        if (ensureValidState)
-            this.ensureValidState();
-
         const object = <any>Object.assign({}, this);
+
+        if (ensureValidState && this._currentStateToIgnore !== IgnoreStateCheckOn.All)
+            this.ensureValidState();
 
         this.deleteFieldsWithIgnoreDecorator(object);
 
         const objectKeys = Object.keys(object);
 
-        const validationsToIgnore = DecoratorTool.getMyPropertyDecoratorValues(this.constructor, "Validation");
-
-        console.log("Validation", validationsToIgnore, this._currentStateToIgnore)
+        const validationsToIgnore = this.validationsToIgnore();
 
         objectKeys.forEach(key => {
-            this.handleInnerObject(
-                object,
-                key,
-                validationsToIgnore);
+            this.handleInnerObject(object, key, validationsToIgnore);
         });
 
         return object;
@@ -60,9 +52,8 @@ export default class AbstractEntity {
         }
     }
 
-    private handleInnerObject(object: any,
-                              key: string,
-                              validationsToIgnore: any[]): void {
+    private handleInnerObject(object: any, key: string, validationsToIgnore: any[]): void {
+
         const isObject = typeof object[key] === "object" &&
             Condition.isNotUndefined(object[key]) &&
             Condition.isNotNull(object[key]);
@@ -71,19 +62,17 @@ export default class AbstractEntity {
 
         if (isObject && object[key].isValueObject && object[key].isValueObject()) {
 
-            this.extractValueObjectAsField(object, key, haveUnderscore, validationsToIgnore);
+            this.extractValueObjectAsField(object, key, haveUnderscore);
 
         } else if (isObject && haveUnderscore && object[key].asObject) {
-
             object[key]._currentStateToIgnore = this._currentStateToIgnore;
             object[key.replace("_", "")] =
-                object[key].asObject(this.checkValidState(validationsToIgnore, key));
+                object[key].asObject(this.ensureObjectIsValidState(validationsToIgnore, key));
             //Delete old field with old key
             delete object[key];
         } else if (isObject && object[key].asObject) {
-
             object[key]._currentStateToIgnore = this._currentStateToIgnore;
-            object[key] = object[key].asObject(this.checkValidState(validationsToIgnore, key));
+            object[key] = object[key].asObject(this.ensureObjectIsValidState(validationsToIgnore, key));
         } else if (haveUnderscore) {
 
             object[key.replace("_", "")] = object[key];
@@ -91,13 +80,7 @@ export default class AbstractEntity {
         }
     }
 
-    private extractValueObjectAsField(object: any,
-                                      key: string,
-                                      haveUnderscore: boolean,
-                                      validationsToIgnore: any[]): void {
-
-        if (this.checkValidState(validationsToIgnore, key))
-            object[key].ensureValidState();
+    private extractValueObjectAsField(object: any, key: string, haveUnderscore: boolean): void {
 
         if (haveUnderscore) {
             object[key.replace("_", "")] = object[key].value;
@@ -108,23 +91,61 @@ export default class AbstractEntity {
         object[key] = object[key].value;
     }
 
-    private checkValidState(validationsToIgnore: any[], field: string): boolean {
+    private ensureObjectIsValidState(validationsToIgnore: any[], key: string): boolean {
+        if (validationsToIgnore.length === 0)
+            return true;
 
+        const validationToIgnore = validationsToIgnore.filter(v => v.field === key);
+
+        if (validationToIgnore.length === 0)
+            return true;
+
+        return this.shouldCheckIfValidState(validationToIgnore[0].type);
+    }
+
+    protected ensureValidState(): void {
+        this.ensureValueObjectIsValidState();
+    }
+
+    private ensureValueObjectIsValidState(): void {
+        const validationsToIgnore = this.validationsToIgnore();
+
+        const keys = Object.keys(this).filter(k => validationsToIgnore.filter(v => v.field === k).length === 0);
+
+        keys.forEach(key => this.isValueObjectValidState(this, {
+            field: key,
+            type: IgnoreStateCheckOn.None
+        }));
+
+        validationsToIgnore.forEach(
+            validationObject => this.isValueObjectValidState(this, validationObject));
+    }
+
+    private isValueObjectValidState(object: any, validationObject: any): void {
+        const field = validationObject.field;
+        const value = object[field];
+        const isSomething = Condition.isNotUndefined(value) && Condition.isNotNull(value);
+        const isValueObject = isSomething && value.isValueObject && value.isValueObject();
+
+        if (isSomething && isValueObject && this.shouldCheckIfValidState(validationObject.type)) {
+            value.ensureValidState();
+        }
+    }
+
+    private shouldCheckIfValidState(type: number) {
         if (this._currentStateToIgnore === IgnoreStateCheckOn.All)
             return false;
 
-        const validationObject = validationsToIgnore.filter(o => o.field === field);
-
-        let ignoreValidation = validationObject.length !== 0 && validationObject[0].type === this._currentStateToIgnore;
+        let ignoreValidation = type === this._currentStateToIgnore;
 
         if (!ignoreValidation)
-            ignoreValidation = (validationObject.length !== 0 && validationObject[0].type === IgnoreStateCheckOn.All);
+            ignoreValidation = type === IgnoreStateCheckOn.All;
 
         return !ignoreValidation;
     }
 
-    protected ensureValidState(): void {
-        throw new Error(`The ensureValidState function in the ${this.constructor.name} should be overwritten`);
+    private validationsToIgnore(): any[] {
+        return DecoratorTool.getMyPropertyDecoratorValues(this.constructor, "Validation");
     }
 
     public exp(): ExpresionBuilder {

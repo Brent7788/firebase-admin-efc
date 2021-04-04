@@ -1,6 +1,7 @@
 import {IgnoreField} from "../tools/decorators/FireDecorator";
 import Condition from "../tools/Condition";
 import AbstractEntity from "./AbstractEntity";
+import {IgnoreStateCheckOn} from "./enums/IgnoreStateCheckOn";
 
 
 export default class StorageFile extends AbstractEntity {
@@ -21,7 +22,15 @@ export default class StorageFile extends AbstractEntity {
         this.noFileExtension = noFileExtension;
     }
 
+    public checkIfValidState(ignoreStateOn = IgnoreStateCheckOn.None): void {
+        this.ensureValidState();
+        this.currentStateToIgnore = ignoreStateOn;
+    }
+
     protected ensureValidState() {
+
+        super.ensureValidState();
+
         if (Condition.isStringEmpty(this._name))
             throw new Error("File Name not provided");
 
